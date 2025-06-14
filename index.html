@@ -395,8 +395,14 @@ Exemplos:
         </div>
     </div>
 
-    <script defer src="https://unpkg.com/face-api.js"></script>
-    <script>
+    <!-- Replace the current face-api.js import with this browser-compatible version -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="scripts/facial.js" type="module"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script defer src="scripts/text.js" type="module"></script>
+    <script type="module">
+        import { analyzeTextWithBert } from './scripts/text.js';
+        
         class MultimodalSentimentAnalyzer {
             constructor() {
                 this.video = document.getElementById('video');
@@ -520,7 +526,7 @@ Exemplos:
                 });
             }
             
-            analyzeText() {
+            async analyzeText() {
                 const text = document.getElementById('textInput').value.trim();
                 
                 if (!text) {
@@ -528,50 +534,29 @@ Exemplos:
                     return;
                 }
                 
-                this.updateStatus('textStatus', 'Analisando texto...', 'loading');
+                this.updateStatus('textStatus', 'Analisando texto com BERT...', 'loading');
                 
-                // Simulação da análise de sentimentos de texto
-                setTimeout(() => {
+                try {
+                    // Chamar a função de análise BERT
+                    const sentimentResults = await analyzeTextWithBert(text);
+                    
+                    // Atualizar os sentimentos com os resultados reais
+                    this.textSentiments = {
+                        positive: sentimentResults.positive || 0,
+                        negative: sentimentResults.negative || 0,
+                        neutral: sentimentResults.neutral || 0
+                    };
+                    
+                    this.updateTextSentiments();
+                    this.updateComparison();
+                    this.updateStatus('textStatus', 'Análise BERT concluída!', 'success');
+                } catch (error) {
+                    console.error('Erro na análise BERT:', error);
+                    this.updateStatus('textStatus', 'Erro na análise: ' + error.message, 'error');
+                    
+                    // Fallback para o método de simulação em caso de erro
                     this.simulateTextAnalysis(text);
-                    this.updateStatus('textStatus', 'Análise concluída!', 'success');
-                }, 1500);
-            }
-            
-            simulateTextAnalysis(text) {
-                // Palavras-chave para análise básica de sentimentos
-                const positiveWords = ['feliz', 'bom', 'ótimo', 'excelente', 'amor', 'alegria', 'sucesso', 'maravilhoso', 'perfeito', 'incrível'];
-                const negativeWords = ['triste', 'ruim', 'péssimo', 'ódio', 'raiva', 'decepção', 'problema', 'terrível', 'horrível', 'fracasso'];
-                
-                const words = text.toLowerCase().split(/\s+/);
-                let positiveScore = 0;
-                let negativeScore = 0;
-                
-                words.forEach(word => {
-                    if (positiveWords.some(pw => word.includes(pw))) positiveScore++;
-                    if (negativeWords.some(nw => word.includes(nw))) negativeScore++;
-                });
-                
-                const totalWords = words.length;
-                const neutralScore = totalWords - positiveScore - negativeScore;
-                
-                // Normalizar scores
-                if (totalWords > 0) {
-                    this.textSentiments.positive = positiveScore / totalWords;
-                    this.textSentiments.negative = negativeScore / totalWords;
-                    this.textSentiments.neutral = neutralScore / totalWords;
-                } else {
-                    this.textSentiments = { positive: 0, negative: 0, neutral: 1 };
                 }
-                
-                // Adicionar alguma variação aleatória
-                if (this.textSentiments.positive === 0 && this.textSentiments.negative === 0) {
-                    this.textSentiments.neutral = 0.7 + Math.random() * 0.3;
-                    this.textSentiments.positive = Math.random() * 0.2;
-                    this.textSentiments.negative = Math.random() * 0.2;
-                }
-                
-                this.updateTextSentiments();
-                this.updateComparison();
             }
             
             updateTextSentiments() {
